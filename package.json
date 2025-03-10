@@ -1,6 +1,6 @@
 {
   "name": "@henderea/json-value",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "A tool for extracting data from JSON",
   "homepage": "https://github.com/henderea/json-value#readme",
   "bugs": {
