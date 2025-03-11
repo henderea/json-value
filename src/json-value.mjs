@@ -320,7 +320,7 @@ const interactiveHelpText = new HelpTextMaker('')
   .wrap()
   .pushWrap(4)
   .dict
-  .key.flag('<path>').value.text('get the value at ').flag('<path>').text(`, where the path separator is '->'. A path of `).flag('$').text(` will show the entire JSON. Use `).flag('*').text(` to indicate all keys at that piece of the path. Use `).flag('*!').text(` to indicate all keys at that piece of the path that have a non-empty value. Use a comma-separated list of keys in curly braces to get those keys as an object. Prefix the entire path with `).flag('!').text(` to indicate that null should be used instead of the full object when a path piece is not found.`).end.nl
+  .key.flag('<path>').value.text('get the value at ').flag('<path>').text(`, where the path separator is '`).flag('->').text(`'. A path of `).flag('$').text(` will show the entire JSON. Use `).flag('*').text(` to indicate all keys at that piece of the path. Use `).flag('*!').text(` to indicate all keys at that piece of the path that have a non-empty value. Use a comma-separated list of keys in curly braces to get those keys as an object. Prefix the entire path with `).flag('!').text(` to indicate that null should be used instead of the full object when a path piece is not found.`).end.nl
   .key.flag('\\q').value.text('exit').end.nl
   .key.flag('\\h', '\\?').value.text('print this help').end.nl
   .key.flag('\\d').text(' ').param('<path>').value.text('print the elements in ').param('<path>').end.nl
