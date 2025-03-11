@@ -87,7 +87,7 @@ async function readFiles(fileNames) {
   }));
 }
 
-function resolvePath(pathPieces, curData) {
+function resolvePath(pathPieces, curData, fallbackToNull = false) {
   if(__.listEmpty(pathPieces)) {
     return curData;
   }
@@ -97,31 +97,37 @@ function resolvePath(pathPieces, curData) {
     piece = piece.replace(/^\{\s*([^{}]+?)\s*}$/, '$1');
     const pieces = piece.split(/\s*,\s*/g);
     const rv = {};
-    pieces.forEach((p) => { rv[p] = resolvePath([p, ...subPieces], curData); });
+    pieces.forEach((p) => { rv[p] = resolvePath([p, ...subPieces], curData, fallbackToNull); });
     return rv;
   }
   if(__.isArray(curData)) {
     if(piece == '*') {
-      return curData.map((v) => resolvePath(subPieces, v));
+      return curData.map((v) => resolvePath(subPieces, v, fallbackToNull));
+    }
+    if(piece == '*!') {
+      return curData.map((v) => resolvePath(subPieces, v, true)).filter((v) => !__.isEmpty(v) || v === 0);
     }
     piece = parseInt(String(piece));
     const subData = __.getAtIndex(curData, piece);
     if(__.isUndefined(subData)) {
-      return curData;
+      return fallbackToNull ? null : curData;
     }
-    return resolvePath(subPieces, subData);
+    return resolvePath(subPieces, subData, fallbackToNull);
   }
   if(__.isObject(curData)) {
     if(piece == '*') {
-      return Object.values(curData).map((v) => resolvePath(subPieces, v));
+      return Object.values(curData).map((v) => resolvePath(subPieces, v, fallbackToNull));
+    }
+    if(piece == '*!') {
+      return Object.values(curData).map((v) => resolvePath(subPieces, v, true)).filter((v) => !__.isEmpty(v) || v === 0);
     }
     piece = String(piece);
     if(__.hasKey(curData, piece)) {
-      return resolvePath(subPieces, curData[piece]);
+      return resolvePath(subPieces, curData[piece], fallbackToNull);
     }
-    return curData;
+    return fallbackToNull ? null : curData;
   }
-  return curData;
+  return fallbackToNull ? null : curData;
 }
 
 function getType(item) {
@@ -138,7 +144,7 @@ function getType(item) {
 }
 
 function getSuggestions(pathPieces, data, printChildren = false, includeTypes = false) {
-  if(pathPieces.includes('*') || pathPieces.some((p) => /^\{\s*[^{}\s]+[^{}]*\s*}$/g.test(p))) {
+  if(pathPieces.includes('*') || pathPieces.includes('*?') || pathPieces.some((p) => /^\{\s*[^{}\s]+[^{}]*\s*}$/g.test(p))) {
     return null;
   } else {
     const lastPiece = __.last(pathPieces);
@@ -314,7 +320,7 @@ const interactiveHelpText = new HelpTextMaker('')
   .wrap()
   .pushWrap(4)
   .dict
-  .key.flag('<path>').value.text('get the value at ').flag('<path>').text(`, where the path separator is '->'. A path of `).flag('$').text(` will show the entire JSON. Use `).flag('*').text(` to indicate all keys at that piece of the path. Use a comma-separated list of keys in curly braces to get those keys as an object.`).end.nl
+  .key.flag('<path>').value.text('get the value at ').flag('<path>').text(`, where the path separator is '->'. A path of `).flag('$').text(` will show the entire JSON. Use `).flag('*').text(` to indicate all keys at that piece of the path. Use `).flag('*!').text(` to indicate all keys at that piece of the path that have a non-empty value. Use a comma-separated list of keys in curly braces to get those keys as an object. Prefix the entire path with `).flag('!').text(` to indicate that null should be used instead of the full object when a path piece is not found.`).end.nl
   .key.flag('\\q').value.text('exit').end.nl
   .key.flag('\\h', '\\?').value.text('print this help').end.nl
   .key.flag('\\d').text(' ').param('<path>').value.text('print the elements in ').param('<path>').end.nl
@@ -330,7 +336,7 @@ const interactiveHelpText = new HelpTextMaker('')
 async function runInteractive(data, options) {
   const rl = createReadlineInterface(data);
   while(true) {
-    const path = await prompt(rl);
+    let path = await prompt(rl);
     if(path == '\\q') {
       process.exit(0);
     } else if(path == '\\h' || path == '\\?') {
@@ -363,8 +369,10 @@ async function runInteractive(data, options) {
       if(path == '$') {
         printJson(data, options);
       } else {
+        const fallbackToNull = path.startsWith('!');
+        path = path.replace(/^!/, '');
         const pathPieces = path.split(/->/g);
-        const curData = resolvePath(pathPieces, data);
+        const curData = resolvePath(pathPieces, data, fallbackToNull);
         printJson(curData, options);
       }
     }
