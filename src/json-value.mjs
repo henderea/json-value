@@ -193,6 +193,29 @@ function printJson(data, options) {
   }
 }
 
+const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+function formatSize(size) {
+  let unitInd;
+  if(Math.abs(size) < 1) {
+    unitInd = 0;
+  } else {
+    unitInd = Math.floor(Math.log(Math.abs(size)) / Math.log(1024));
+  }
+  if(unitInd < 0) {
+    unitInd = 0;
+  }
+  if(unitInd >= units.length) {
+    unitInd = units.length - 1;
+  }
+  let unit = units[unitInd];
+  if(unitInd == 0) {
+    return `${Math.floor(size)} ${unit}`;
+  } else {
+    return `${(size / Math.pow(1024, unitInd)).toLocaleString('en-US', { maximumFractionDigits: 2 })} ${unit}`;
+  }
+};
+
 function createReadlineInterface(data) {
   const rl = readline.createInterface({
     input: ttys.stdin,
@@ -200,7 +223,7 @@ function createReadlineInterface(data) {
     prompt: '>> ',
     tabSize: 4,
     completer: () => {
-      const line = rl.line.replace(/^\\d\+?\s*/, '');
+      const line = rl.line.replace(/^(\\d\+?|\\s)\s*/, '');
       const pathPieces = line.split(/->/g);
       const lastPiece = __.last(pathPieces);
       const suggestions = getSuggestions(pathPieces, data) || [];
@@ -325,6 +348,7 @@ const interactiveHelpText = new HelpTextMaker('')
   .key.flag('\\h', '\\?').value.text('print this help').end.nl
   .key.flag('\\d').text(' ').param('<path>').value.text('print the elements in ').param('<path>').end.nl
   .key.flag('\\d+').text(' ').param('<path>').value.text('print the elements in ').param('<path>').text(' with data types').end.nl
+  .key.flag('\\s').text(' ').param('<path>').value.text('print the minimized-format size of the elements in ').param('<path>').end.nl
   .key.flag('\\g').text(' ').param('<regex>').value.text('search for values matching ').param('<regex>').end.nl
   .key.flag('\\gi').text(' ').param('<regex>').value.text('search for values matching ').param('<regex>').text(' ignoring case').end.nl
   .key.flag('\\G').text(' ').param('<regex>').value.text('search for keys matching ').param('<regex>').end.nl
@@ -365,6 +389,19 @@ async function runInteractive(data, options) {
       const pattern = new RegExp(path.replace(/^\\Gi\s*(.*)$/, '$1'), 'gi');
       const results = doNameGrep(data, pattern);
       printNameGrepResults(results);
+    } else if(/^\\s\s*(.*)$/.test(path)) {
+      if(path == '$') {
+        const length = JSON.stringify(data).length;
+        console.log(formatSize(length));
+      } else {
+        path = path.replace(/^\\s\s*(.*)$/, '$1');
+        const fallbackToNull = path.startsWith('!');
+        path = path.replace(/^!/, '');
+        const pathPieces = path.split(/->/g);
+        const curData = resolvePath(pathPieces, data, fallbackToNull);
+        const length = JSON.stringify(curData).length;
+        console.log(formatSize(length));
+      }
     } else {
       if(path == '$') {
         printJson(data, options);
